@@ -9,6 +9,30 @@ from numpy.fft import irfft2, rfft2, fftshift
 
 
 def beam_from_image(beam_im):
+    '''
+    Extracts the beam from an beam-image. Intended to be used on rather good quality 
+    difmap dirty-beam files, but might work on other as well.
+    This is basicly the implementation found in ctapipe for hillas reconstruction
+    (part of ctapipe.image.hillas hillas_parameters function)!
+
+    Parameters
+    ----------
+    beam_im: Image or 2DArray (N, M)
+            Beam-Image, where the beam should be extracted, will be used as distribution.
+
+    Returns
+    -------
+    cog_x: Skalar
+            X-position of the distributions center of gravity
+    cog_y: Skalar
+            Y-position of the distributions center of gravity
+    BMAJ: Skalar in unit px
+            Beam major component (in hillas-terms: length)
+    BMIN: Skalar in unit px
+            Beam minor component (in hillas-terms: width)
+    BPA: Skalar in unit rad
+            Beam position angle with respect to the x-axis
+    '''
     # Supress sidelobes by cutting everything from the image, 
     # that is smaller than the FWHM of the central gauss
     beam_im[beam_im < 0.5*beam_im.max()] = 0
@@ -34,11 +58,40 @@ def beam_from_image(beam_im):
 
 class Beam:
     '''
-    When BMIN, BMAJ and BPA from beam_from_image are used, than they need to 
-    be transformed: 
-    sigma_l = BMAJ/(2*np.sqrt(2*np.log(2)))
-    sigma_w = BMIN/(2*np.sqrt(2*np.log(2)))
-    theta = np.pi/2+BPA
+    Container class for a beam image. Uses an astropy Gaussian2DKernel to 
+    intialize a gaussian beam with given parameters.
+
+    Parameters
+    ----------
+    sigma_l: Skalar in unit px
+            Deviation of the gaussian beams major component. BMAJ-values can be 
+            used if transformed acoording to sigma_l = BMAJ/(2*np.sqrt(2*np.log(2))),
+            where np.log is the natural logarithm.
+    sigma_w: Skalar in unit px
+            Deviation of the gaussian beams minor component. BMIN-values can be 
+            used if transformed acoording to sigma_w = BMIN/(2*np.sqrt(2*np.log(2))),
+            where np.log is the natural logarithm.
+    theta: Skalar in unit rad
+            Beam positian angle in rad with respect to the x-axis. BPA from beam_from_image 
+            can be used if transformed to theta = np.pi/2+BPA.
+    x_size: Skalar in unit px
+            Beam-Image x-size
+    y_size: Skalar in unit px
+            Beam-Image y-size
+
+    Returns
+    -------
+    Beam-object
+
+    Properties
+    ----------
+    get_beam:
+            Returns the beam-image as numpy 2Darray (x_size, y_size)
+
+    Functions
+    ---------
+    convolve:
+            Convolves beam-image with another image
     '''
     def __init__(self, sigma_l, sigma_w, theta, x_size, y_size):
         # Use astropy to initialize beam
@@ -52,12 +105,30 @@ class Beam:
 
     @property
     def get_beam(self):
-        """
-        Returns beam as image.
-        """
+        '''
+        Returns the beam-image as numpy 2Darray (x_size, y_size)
+        '''
         return self._beam
 
     def convolve(self, model):
+        '''
+        Convolves beam-image with another image
+
+        Parameters
+        ----------
+        model: Image or 2Darray (N,M)
+                Image, that should be folded with beam-image. Needs to be
+                same dimension as beam-image.
+
+        Returns
+        -------
+        folded Image: 2Darray (N,M)
+                Convolved and shifted Image.
+
+        Raises
+        ------
+        None, so check dimensions of input Image!
+        '''
         beam_fft = rfft2(np.copy(self._beam))
         mod_fft = rfft2(model)
 

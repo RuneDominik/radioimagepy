@@ -18,7 +18,7 @@ def PCA(image):
     cog_y: Skalar
             Y-position of the distributions center of gravity
     psi: Skalar
-            Angle between first mjor component and x-axis
+            Angle between first mjor component and y-axis
 
     '''
     pix_x, pix_y, image = im_to_array_value(image)
